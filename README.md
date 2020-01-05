@@ -1,4 +1,4 @@
-# gpxloader
+# GPX Viewer
 
 ## Project setup
 ```
