@@ -245,6 +245,14 @@ export default class MapView extends Vue {
 </script>
 
 <style>
+.leaflet-bar, .leaflet-bar a .leaflet-bar a:hover {
+  background-color: #666 !important;
+}
+
+.leaflet-bar a.leaflet-disabled {
+  background-color: #BBB !important;
+}
+
 .start-stop-icon {
   width: 32px;
   height: 32px;

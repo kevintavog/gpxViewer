@@ -30,8 +30,6 @@ export class GpxStore {
       let index = this.files.indexOf(gpx)
       if (index >= 0) {
         Vue.delete(this.files, index)
-      } else {
-        console.log(`Unable to find ${gpx.name}`)
       }
     }
 }
