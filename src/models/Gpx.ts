@@ -1,5 +1,6 @@
 import { Geo } from '@/models/Geo'
 import * as xml2js from 'xml2js'
+import { Timezone } from '@/models/Timezone'
 
 /*
 <gpx [many attributes] >
@@ -23,6 +24,7 @@ export interface GpxFile {
     startDate: Date
     endDate: Date
     meters: number
+    timezoneName: string
 }
 
 export interface GpxTrack {
@@ -40,6 +42,7 @@ export interface GpxTrackBounds {
 export interface GpxSegment {
     points: GpxPoint[]
     meters: number
+    timezoneName: string
 }
 
 export interface GpxPoint {
@@ -102,7 +105,8 @@ export class GpxParser {
                     name: name,
                     startDate: startDate,
                     endDate: endDate,
-                    meters: trackList.map( (t) => t.meters).reduce( (l, r) => l + r)
+                    meters: trackList.map( (t) => t.meters).reduce( (l, r) => l + r),
+                    timezoneName: trackList[0].segments[0].timezoneName,
                 })
             })
         })
@@ -134,7 +138,8 @@ export class GpxParser {
                 const secondsDiff = (gpxPt.timestamp.getTime() - prevPt.timestamp.getTime()) / 1000
                 if (secondsDiff > 30) {
                     if (pointList.length > 1) {
-                        segments.push({ points: pointList, meters: meters })
+                        let timezoneName = Timezone.fromGpx(pointList[0])
+                        segments.push({ points: pointList, meters: meters, timezoneName })
                         meters = 0.0
                     }
                     pointList = []
@@ -147,7 +152,8 @@ export class GpxParser {
         }
 
         if (pointList.length > 1) {
-            segments.push({ points: pointList, meters: meters })
+            let timezoneName = Timezone.fromGpx(pointList[0])
+            segments.push({ points: pointList, meters: meters, timezoneName })
         }
         return segments
     }

@@ -1,7 +1,7 @@
 <template>
   <div class="map outer">
     <div class="map-content" id="map" />
-    <Info class="info-content" :message="infoText" />
+    <Info class="info-content" :message="infoText" v-on:size-to-track="sizeToTrack($event)" />
   </div>
 </template>
 
@@ -34,8 +34,6 @@ export default class MapView extends Vue {
   private selectedOptions = {}
   private selectedPoint?: L.Circle
 
-  private startIcon = new L.Icon({})
-  private endIcon = new L.Icon({})
   private nextLineOption = 0
   private lineOptions: L.PolylineOptions[] = [
     { color: '#008B8B', weight: 5, dashArray: '', opacity: 0.9 },
@@ -113,6 +111,19 @@ export default class MapView extends Vue {
     }
   }
 
+  private sizeToTrack(e: Event) {
+    let name = e.toString()
+    if (this.visibleTracks.has(name)) {
+      let gpxFile = this.gpxStore.get(name)
+      if (gpxFile) {
+        let bounds = L.latLngBounds([gpxFile!.bounds.minLat, gpxFile!.bounds.minLon], [gpxFile!.bounds.maxLat, gpxFile!.bounds.maxLon])
+        this.map!.fitBounds(bounds)
+      }
+    } else {
+      console.error(`No such track: ${name}`)
+    }
+  }
+
   @Watch('activeTracks')
   private onTracksChanged() {
     const addedTracks = this.activeTracks.filter( (x) => !this.visibleTracks.has(x.name))
@@ -132,8 +143,8 @@ export default class MapView extends Vue {
 
     if (this.activeTracks.length > 0) {
       let track = this.activeTracks.slice(-1)[0]
-      this.defaultInfoText = `${displayable.dayOfWeek(track.startDate)}, `
-        + `${displayable.date(track.startDate)}; `
+      this.defaultInfoText = `${displayable.dayOfWeek(track.startDate, track.timezoneName)}, `
+        + `${displayable.date(track.startDate, track.timezoneName)}; `
         + `${displayable.distanceMeters(track.meters)}, `
         + `${displayable.durationGpx(track)}`
     } else {
@@ -147,6 +158,9 @@ export default class MapView extends Vue {
       this.mapLayersControl.removeLayer(this.nameToControlLayer.get(name)!)
     }
     layer.removeFrom(this.map!)
+    if (this.selectedPoint) {
+      this.selectedPoint.removeFrom(this.map!)
+    }
   }
 
   private add(gpx: GpxFile): L.FeatureGroup {
@@ -189,7 +203,7 @@ export default class MapView extends Vue {
     const firstPoint = segment.points[0]
     const lastPoint = segment.points.slice(-1)[0]
     const segmentMessage = `track #${trackIndex + 1}; segment #${segmentIndex + 1}; ` +
-      `${displayable.timeWithSeconds(firstPoint.timestamp.toISOString())}, ` +
+      `${displayable.timeWithSeconds(firstPoint.timestamp, segment.timezoneName)}, ` +
       `${displayable.distanceMeters(segment.meters)}, ` +
       `${displayable.durationPoints(firstPoint, lastPoint)}`
     var options = { radius: 8, weight: 1, color: '#33A532', fillColor: '#33A532', fillOpacity: 0.8, className: 'start-end-marker' }
@@ -197,7 +211,7 @@ export default class MapView extends Vue {
     start.addTo(fg)
     start.on('click', (e) => {
       // this.showStartPointInfo(gpx, segment, trackIndex, segmentIndex)
-      let startTime = displayable.shortTime(segment.points[0].timestamp.toString())
+      let startTime = displayable.shortTime(segment.points[0].timestamp, segment.timezoneName)
       this.setSelectedMessage(`${segmentMessage}; start`)
       this.selectPoint(firstPoint)
     })
@@ -208,7 +222,7 @@ export default class MapView extends Vue {
     end.addTo(fg)
     end.on('click', (e) => {
       // this.showEndPointInfo(gpx, segment, trackIndex, segmentIndex)
-      this.setSelectedMessage(`${segmentMessage}; end at ${displayable.timeWithSeconds(lastPoint.timestamp.toISOString())}`)
+      this.setSelectedMessage(`${segmentMessage}; end at ${displayable.timeWithSeconds(lastPoint.timestamp, segment.timezoneName)}`)
       this.selectPoint(lastPoint)
     })
 
@@ -257,9 +271,9 @@ export default class MapView extends Vue {
   }
 
   private showPointInfo(segment: GpxSegment, segmentMessage: string, pt: GpxPoint) {
-    const duration = displayable.durationPoints(segment.points[0], pt)
-    const distance = displayable.distanceMeters(Geo.distanceSegment(segment, pt))
-    this.setSelectedMessage(`${segmentMessage}; [ ${displayable.timeWithSeconds(pt.timestamp.toString())} ]`)
+    const time = displayable.timeWithSeconds(pt.timestamp, segment.timezoneName)
+    const timezone = displayable.shortTimezoneName(segment.timezoneName)
+    this.setSelectedMessage(`${segmentMessage}; [ ${time} ${timezone} ]`)
   }
 
   private addToMapLayersControl(layer: L.FeatureGroup, name: string) {
@@ -295,20 +309,6 @@ export default class MapView extends Vue {
       const me = e as any
       if (me.originalEvent && me.originalEvent._gpxHandled) { return }
       this.clearSelection()
-    })
-
-    this.startIcon = new L.Icon({
-      iconUrl: 'start.png',
-      // iconSize: [16, 16],
-      // iconAnchor: [16, 16],
-      // className: 'start-stop-icon'
-    })
-
-    this.endIcon = new L.Icon({
-      iconUrl: 'end.png',
-      // iconSize: [16, 16],
-      iconAnchor: [16, 16],
-      className: 'start-stop-icon'
     })
 
     // Used to scale icons at different zoom levels
@@ -356,13 +356,6 @@ export default class MapView extends Vue {
 .direction-arrow-icon {
   width: 32px;
   height: 32px;
-}
-
-.start-icon {
-  width: 16px;
-  height: 16px;
-  background-image:url("../../public/start.png");
-  background-size: 16px 16px;
 }
 
 .gpx-viewer-arrow-polyline {

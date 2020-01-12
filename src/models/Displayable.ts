@@ -66,28 +66,34 @@ export class Displayable {
     return `${Math.round(10 * kmh) / 10} km/h`
   }
 
-  public dayOfWeek(date: string | Date): string {
-    return DateTime.fromISO(new Date(date.toString()).toISOString()).weekdayLong
+  public dayOfWeek(date: string | Date, zoneName: string): string {
+    return this.dateTime(date, zoneName).weekdayLong
   }
 
-  public date(date: string | Date): string {
-    return new Date(date.toString()).toLocaleDateString('en-US')
+  public date(date: string | Date, zoneName: string): string {
+    return this.dateTime(date, zoneName).toLocaleString({ locale: 'en-US' })
   }
 
-  public longDate(date: string): string {
-    return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  public timeWithSeconds(date: string | Date, zoneName: string): string {
+    return this.dateTime(date, zoneName).toFormat('HH:mm.ss')
   }
 
-  public timeWithSeconds(date: string): string {
-    return DateTime.fromISO(new Date(date.toString()).toISOString()).toFormat('HH:mm.ss')
+  public shortTime(date: string | Date, zoneName: string): string {
+    return this.dateTime(date, zoneName).toFormat('HH:mm\xa0a')
   }
 
-  public shortTime(date: string): string {
-    return DateTime.fromISO(new Date(date.toString()).toISOString()).toFormat('HH:mm\xa0a')
+  public shortTimezoneName(zoneName: string): string {
+    return DateTime.utc().setZone(zoneName).offsetNameShort
   }
 
-  public time(date: string): string {
-    return new Date(date).toLocaleTimeString('en-US')
+  public dateTime(date: string | Date, zoneName: string): DateTime {
+    var iso: string
+    if (date instanceof Date) {
+      iso = (date as Date).toISOString()
+    } else {
+      iso = date.toString()
+    }
+    return DateTime.fromISO(iso, { zone: zoneName })
   }
 
   public join(list: string[]): string {

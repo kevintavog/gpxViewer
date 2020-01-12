@@ -5,6 +5,15 @@ import { displayable } from '@/models/Displayable'
 export class GpxStore {
     public files: GpxFile[] = []
 
+    public get(name: string): GpxFile | undefined {
+      for (let idx = 0; idx < this.files.length; ++idx) {
+        if (this.files[idx].name === name) {
+          return this.files[idx]
+        }
+      }
+      return undefined
+    }
+
     public add(file: File): Promise<GpxFile> {
       let storeInstance = this
       return new Promise((resolve, reject) => {

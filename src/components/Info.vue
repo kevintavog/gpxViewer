@@ -35,6 +35,8 @@
               </div>
             </div>
           </b-tab-item>
+
+          <!-- The list of tracks -->
           <b-tab-item icon="route"  >
             <b-table :data="gpxStore.files" >
               <template slot-scope="props">
@@ -48,14 +50,16 @@
                   {{ displayable.distanceMeters(props.row.meters) }}
                 </b-table-column>
                 <b-table-column field="date" label="Date" centered>
-                  {{ displayable.dayOfWeek(props.row.startDate) }},
-                  {{ displayable.date(props.row.startDate) }} 
+                  {{ displayable.dayOfWeek(props.row.startDate, props.row.timezoneName) }},
+                  {{ displayable.date(props.row.startDate, props.row.timezoneName) }} 
                 </b-table-column>
                 <b-table-column field="start" label="Start" centered>
-                  {{ displayable.shortTime(props.row.startDate) }}
+                  {{ displayable.shortTime(props.row.startDate, props.row.timezoneName) }},
+                  {{ displayable.shortTimezoneName(props.row.timezoneName) }}
                 </b-table-column>
                 <b-table-column field="end" label="End" centered>
-                  {{ displayable.shortTime(props.row.endDate) }}
+                  {{ displayable.shortTime(props.row.endDate, props.row.timezoneName) }},
+                  {{ displayable.shortTimezoneName(props.row.timezoneName) }}
                 </b-table-column>
                 <b-table-column field="duration" label="Duration" centered>
                   {{ displayable.durationGpx(props.row) }}
@@ -148,21 +152,25 @@ export default class Info extends Vue {
     }
     var earliest = this.gpxStore.files[0].startDate
     var latest = this.gpxStore.files[0].endDate
+    var earliestTimezoneName = this.gpxStore.files[0].timezoneName
+    var latestTimezoneName = earliestTimezoneName
     this.gpxStore.files.forEach( (f) => {
       if (f.startDate < earliest) {
         earliest = f.startDate
+        earliestTimezoneName = f.timezoneName
       }
       if (f.endDate > latest) {
         latest = f.endDate
+        latestTimezoneName = f.timezoneName
       }
     })
 
-    let earliestDate = this.displayable.date(earliest)
-    let earliestDayOfWeek = this.displayable.dayOfWeek(earliest)
-    let latestDate = this.displayable.date(latest)
-    let latestDayOfWeek = this.displayable.dayOfWeek(latest)
-    let earliestTime = this.displayable.shortTime(earliest.toISOString())
-    let latestTime = this.displayable.shortTime(latest.toISOString())
+    let earliestDate = this.displayable.date(earliest, earliestTimezoneName)
+    let earliestDayOfWeek = this.displayable.dayOfWeek(earliest, earliestTimezoneName)
+    let latestDate = this.displayable.date(latest, latestTimezoneName)
+    let latestDayOfWeek = this.displayable.dayOfWeek(latest, latestTimezoneName)
+    let earliestTime = this.displayable.shortTime(earliest.toISOString(), earliestTimezoneName)
+    let latestTime = this.displayable.shortTime(latest.toISOString(), latestTimezoneName)
     if (earliestDate === latestDate) {
       return `${earliestDayOfWeek}, ${earliestDate} ${earliestTime} - ${latestTime}`
     }

@@ -6,7 +6,7 @@ import { displayable } from './Displayable';
 export class PolylineArrows {
   private arrows: L.Polyline[]
   private arrowAngle = 160
-  private arrowLengthMeters = 145
+  private arrowLengthMeters = 45
   private arrowOptions: L.PolylineOptions = {
     fill: true,
     color: '#000000',
