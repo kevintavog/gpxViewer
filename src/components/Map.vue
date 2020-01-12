@@ -8,9 +8,10 @@
 <script lang="ts">
 import { Component, Inject, Vue, Watch } from 'vue-property-decorator'
 import L from 'leaflet'
-import { GpxFile, GpxTrack, GpxSegment } from '@/models/Gpx'
+import { GpxFile, GpxPoint, GpxSegment, GpxTrack } from '@/models/Gpx'
 import { Geo } from '@/models/Geo'
 import { GpxStore } from '@/models/GpxStore'
+import { PolylineArrows } from '@/models/PolylineArrows'
 import Info from '@/components/Info.vue'
 import { displayable } from '@/models/Displayable'
 
@@ -27,6 +28,10 @@ export default class MapView extends Vue {
   private mapLayersControl: L.Control.Layers | null = null
   private visibleTracks:Map<string, L.Layer> = new Map<string, L.FeatureGroup>()
   private displayable = displayable
+
+  private selectedPath?: L.Path
+  private selectedOptions = {}
+  private selectedPoint?: L.Circle
 
   private startIcon = new L.Icon({})
   private endIcon = new L.Icon({})
@@ -48,6 +53,7 @@ export default class MapView extends Vue {
 
   private mounted() {
     this.initializeMap()
+    this.onTracksChanged()
   }
 
   get activeTracks(): GpxFile[] {
@@ -59,6 +65,50 @@ export default class MapView extends Vue {
       this.infoText = this.defaultInfoText
     } else {
       this.infoText = message
+    }
+  }
+
+  private selectPoint(point: GpxPoint) {
+    if (this.selectedPoint) {
+      this.selectedPoint
+        .setLatLng([point.latitude, point.longitude])
+        .addTo(this.map!)
+    } else {
+      this.selectedPoint = new L.Circle(
+        [point.latitude, point.longitude],
+        { color: '#FF6347', opacity: 0.5, radius: 9, fill: true, fillColor: '#FF6347', fillOpacity: 0.8 })
+        .addTo(this.map!)
+    }
+  }
+
+  private selectPath(e: any, path: L.Path, options: {}, message: string) {
+    if (e) {
+      e.originalEvent._gpxHandled = true
+      e.originalEvent.stopImmediatePropagation()
+    }
+
+    if (this.selectedPoint) {
+      this.selectedPoint.removeFrom(this.map!)
+    }
+
+    if (path !== this.selectedPath) {
+      this.clearSelection()
+      this.selectedPath = path
+      this.selectedOptions = options
+      path.setStyle({color: '#0000FF', weight: 10, opacity: 1})
+    }
+    this.setSelectedMessage(message)
+  }
+
+  private clearSelection() {
+    if (this.selectedPoint) {
+      this.selectedPoint.removeFrom(this.map!)
+    }
+
+    if (this.selectedPath) {
+      this.setSelectedMessage('')
+      this.selectedPath.setStyle(this.selectedOptions)
+      this.selectedPath = undefined
     }
   }
 
@@ -89,7 +139,6 @@ export default class MapView extends Vue {
       this.defaultInfoText = ''
     }
     this.setSelectedMessage(this.defaultInfoText)
-
   }
 
   private remove(layer: L.FeatureGroup) {
@@ -127,18 +176,26 @@ export default class MapView extends Vue {
     segment: GpxSegment, lineOptions: L.PolylineOptions) {
     // Using icons - they're too bright and aren't anchored properly (dynamically)
     // Consider using a DivIcon, as it'll scale better AND could (maybe?) transform the center
-    // const start = new L.Marker([segment.points[0].latitude, segment.points[0].longitude], {icon: this.startIcon})
-    // start.addTo(fg)
-    // const end = new L.Marker([segment.points.slice(-1)[0].latitude, segment.points.slice(-1)[0].longitude], { icon: this.endIcon})
-    // end.addTo(fg)
+    // new L.Marker([segment.points[0].latitude, segment.points[0].longitude], {icon: this.startIcon}).addTo(fg)
+    // new L.Marker([segment.points.slice(-1)[0].latitude, segment.points.slice(-1)[0].longitude], { icon: this.endIcon}).addTo(fg)
+
+    new PolylineArrows(this.map!, segment, lineOptions).addTo(fg)
 
     const id = `${gpx.name}; track #${trackIndex + 1}; segment #${segmentIndex + 1}`
+    const firstPoint = segment.points[0]
+    const lastPoint = segment.points.slice(-1)[0]
+    const segmentMessage = `track #${trackIndex + 1}; segment #${segmentIndex + 1}; ` +
+      `${displayable.timeWithSeconds(firstPoint.timestamp.toISOString())}, ` +
+      `${displayable.distanceMeters(segment.meters)}, ` +
+      `${displayable.durationPoints(firstPoint, lastPoint)}`
     var options = { radius: 8, weight: 1, color: '#33A532', fillColor: '#33A532', fillOpacity: 0.8, className: 'start-end-marker' }
     const start = new L.Circle([segment.points[0].latitude, segment.points[0].longitude], options)
     start.addTo(fg)
     start.on('click', (e) => {
+      // this.showStartPointInfo(gpx, segment, trackIndex, segmentIndex)
       let startTime = displayable.shortTime(segment.points[0].timestamp.toString())
-      this.setSelectedMessage(`${id}; ${startTime}, ${displayable.distanceMeters(segment.meters)}`)
+      this.setSelectedMessage(`${segmentMessage}; start`)
+      this.selectPoint(firstPoint)
     })
 
     options.color = '#D70025'
@@ -146,14 +203,39 @@ export default class MapView extends Vue {
     const end = new L.Circle([segment.points.slice(-1)[0].latitude, segment.points.slice(-1)[0].longitude], options)
     end.addTo(fg)
     end.on('click', (e) => {
-      let endTime = displayable.shortTime(segment.points.slice(-1)[0].timestamp.toString())
-      this.setSelectedMessage(`${id}; ${endTime}, ${displayable.distanceMeters(segment.meters)}`)
+      // this.showEndPointInfo(gpx, segment, trackIndex, segmentIndex)
+      this.setSelectedMessage(`${segmentMessage}; end at ${displayable.timeWithSeconds(lastPoint.timestamp.toISOString())}`)
+      this.selectPoint(lastPoint)
     })
 
-    const circleOptions = { radius: 2, weight: 1, color: lineOptions.color, fillColor: lineOptions.color, fillOpacity: 0.5   }
+    // The raw points layer bogs the site down; only show it when zoomed in enough to see the individual points.
+    const rawPointsLayer = new L.LayerGroup()
+    const rawPointsOptions = { radius: 3.5, weight: 0, color: lineOptions.color, fillColor: lineOptions.color, fillOpacity: 0.4 }
     segment.points.forEach( (pt) => {
-      new L.Circle(new L.LatLng(pt.latitude, pt.longitude), circleOptions).addTo(fg)
+      const c = new L.Circle(new L.LatLng(pt.latitude, pt.longitude), rawPointsOptions)
+      c.addTo(rawPointsLayer)
+      c.on('click', (e) => {
+        this.showPointInfo(segment, segmentMessage, pt)
+      })
     })
+
+    var rawPointsVisible = false
+    const theMap = this.map!
+    theMap.on('zoomend', (e) => {
+      if (theMap.getZoom() > 16) {
+        if (!rawPointsVisible) {
+          // Only show raw points when they'd be visible AND they've been selected
+          // circleLayerVisible = true
+          // fg.addLayer(rawPointsLayer)
+        }
+      } else {
+        if (rawPointsVisible) {
+          rawPointsVisible = false
+          fg.removeLayer(rawPointsLayer)
+        }
+      }
+    })
+
 
     const latLngList = segment.points.map( (p) => {
       return new L.LatLng(p.latitude, p.longitude)
@@ -163,9 +245,17 @@ export default class MapView extends Vue {
     line.on('click', (e) => {
       let le = e as L.LeafletMouseEvent
       let nearest = Geo.nearestPoint(segment.points, le.latlng.lat, le.latlng.lng)
-      this.setSelectedMessage(`${id}; ${nearest.distance}, ${nearest.duration}; point ${displayable.shortTime(nearest.point.timestamp.toString())}`)
+      this.selectPath(e, line, lineOptions, '')
+      this.showPointInfo(segment, segmentMessage, nearest.point)
+      this.selectPoint(nearest.point)
     })
     line.addTo(fg)
+  }
+
+  private showPointInfo(segment: GpxSegment, segmentMessage: string, pt: GpxPoint) {
+    const duration = displayable.durationPoints(segment.points[0], pt)
+    const distance = displayable.distanceMeters(Geo.distanceSegment(segment, pt))
+    this.setSelectedMessage(`${segmentMessage}; [ ${displayable.timeWithSeconds(pt.timestamp.toString())} ]`)
   }
 
   private addToMapLayersControl(layer: L.FeatureGroup, name: string) {
@@ -199,14 +289,14 @@ export default class MapView extends Vue {
     this.map.on('click', (e) => {
       const me = e as any
       if (me.originalEvent && me.originalEvent._gpxHandled) { return }
-      // this.clearSelection()
+      this.clearSelection()
     })
 
     this.startIcon = new L.Icon({
       iconUrl: 'start.png',
       // iconSize: [16, 16],
-      iconAnchor: [16, 16],
-      className: 'start-stop-icon'
+      // iconAnchor: [16, 16],
+      // className: 'start-stop-icon'
     })
 
     this.endIcon = new L.Icon({
@@ -245,7 +335,7 @@ export default class MapView extends Vue {
 </script>
 
 <style>
-.leaflet-bar, .leaflet-bar a .leaflet-bar a:hover {
+.leaflet-bar, .leaflet-bar a, .leaflet-bar a:hover {
   background-color: #666 !important;
 }
 
@@ -258,8 +348,9 @@ export default class MapView extends Vue {
   height: 32px;
 }
 
-.start-end-marker {
-  /* transform: scale(1.5); */
+.direction-arrow-icon {
+  width: 32px;
+  height: 32px;
 }
 
 .start-icon {
@@ -267,6 +358,10 @@ export default class MapView extends Vue {
   height: 16px;
   background-image:url("../../public/start.png");
   background-size: 16px 16px;
+}
+
+.gpx-viewer-arrow-polyline {
+  transform: scale(1.0);
 }
 
 </style>

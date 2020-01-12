@@ -1,4 +1,4 @@
-import { GpxPoint } from '@/models/Gpx'
+import { GpxPoint, GpxSegment } from '@/models/Gpx'
 import { displayable } from '@/models/Displayable'
 
 export interface GeoNearestPoint {
@@ -26,12 +26,21 @@ export class Geo {
   }
 
   // Returns the distance in meters
-  public static distanceGpx(start: GpxPoint, end: GpxPoint) {
+  public static distanceGpx(start: GpxPoint, end: GpxPoint): number {
     return this.distanceLL(start.latitude, start.longitude, end.latitude, end.longitude)
   }
 
   // Returns the distance in meters
-  public static distanceLL(lat1: number, lon1: number, lat2: number, lon2: number) {
+  public static distanceSegment(segment: GpxSegment, point: GpxPoint): number {
+    var distance = 0
+    for (var idx = 1; idx < segment.points.length && segment.points[idx].timestamp <= point.timestamp; ++idx) {
+      distance += this.distanceGpx(segment.points[idx - 1], segment.points[idx])
+    }
+    return distance
+  }
+
+  // Returns the distance in meters
+  public static distanceLL(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const latDelta = this.toRad(lat2 - lat1)
     const lonDelta = this.toRad(lon2 - lon1)
     const lat1Rad = this.toRad(lat1)
@@ -50,6 +59,19 @@ export class Geo {
 
   public static toDegrees(n: number) {
     return n * 180 / Math.PI
+  }
+
+  public static bearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    let lat1Radians = Geo.toRad(lat1)
+    let lont1Radians = Geo.toRad(lon1)
+    let lat2Radians = Geo.toRad(lat2)
+    let lon2Radians = Geo.toRad(lon2)
+
+    let y = Math.sin(lon2Radians - lont1Radians) * Math.cos(lat2Radians)
+    let x = Math.cos(lat1Radians) * Math.sin(lat2Radians) -
+      Math.sin(lat1Radians) * Math.cos(lat2Radians) * Math.cos(lon2Radians - lont1Radians)
+    let bearing = Geo.toDegrees(Math.atan2(y, x))
+    return (bearing + 360) % 360
   }
 
   public static pointAlongBearing(lat: number, lon: number, bearing: number, distanceMeters: number) {

@@ -18,11 +18,24 @@
 
 
       <div v-if="activeTracks > 0" class="track-container" >
-        <!-- <b-tabs v-model="activeTab" type="is-boxed" vertical>
-          <b-tab-item label="Info" class="is-pulled-left" >
-            Something interesting here
+        <b-tabs v-model="activeTab" type="is-boxed" vertical>
+          <b-tab-item icon="info"  >
+            <div class="info-text-content is-size-5">
+              <div>
+                {{infoFiles}}
+              </div>
+              <div>
+                {{infoDateAndTime}}
+              </div>
+              <div>
+                {{infoDistance}}
+              </div>
+              <div>
+                {{infoDuration}}
+              </div>
+            </div>
           </b-tab-item>
-          <b-tab-item label="Tracks" class="is-pulled-left" > -->
+          <b-tab-item icon="route"  >
             <b-table :data="gpxStore.files" >
               <template slot-scope="props">
                 <b-table-column field="size" label="" centered>
@@ -53,8 +66,8 @@
               </template>
             </b-table>
 
-          <!-- </b-tab-item>
-        </b-tabs> -->
+          </b-tab-item>
+        </b-tabs>
       </div>
 
     </b-collapse>
@@ -122,7 +135,59 @@ export default class Info extends Vue {
     }
   }
 
-  get headerText(): String {
+  get infoFiles(): string {
+    if (this.activeTracks < 1) {
+      return ''
+    }
+    return this.gpxStore.files.map( (f) => f.name ).join(', ')
+  }
+
+  get infoDateAndTime(): string {
+    if (this.activeTracks < 1) {
+      return ''
+    }
+    var earliest = this.gpxStore.files[0].startDate
+    var latest = this.gpxStore.files[0].endDate
+    this.gpxStore.files.forEach( (f) => {
+      if (f.startDate < earliest) {
+        earliest = f.startDate
+      }
+      if (f.endDate > latest) {
+        latest = f.endDate
+      }
+    })
+
+    let earliestDate = this.displayable.date(earliest)
+    let earliestDayOfWeek = this.displayable.dayOfWeek(earliest)
+    let latestDate = this.displayable.date(latest)
+    let latestDayOfWeek = this.displayable.dayOfWeek(latest)
+    let earliestTime = this.displayable.shortTime(earliest.toISOString())
+    let latestTime = this.displayable.shortTime(latest.toISOString())
+    if (earliestDate === latestDate) {
+      return `${earliestDayOfWeek}, ${earliestDate} ${earliestTime} - ${latestTime}`
+    }
+    return `${earliestDayOfWeek}, ${earliestDate} ${earliestTime} - ${latestDayOfWeek}, ${latestDate} ${latestTime}`
+  }
+
+  get infoDistance(): string {
+    if (this.activeTracks < 1) {
+      return ''
+    }
+    let distance = this.gpxStore.files.map( (f) => f.meters).reduce( (accumulator, v) => accumulator + v )
+    return this.displayable.distanceKilometers(distance / 1000)
+  }
+
+  get infoDuration(): string {
+    if (this.activeTracks < 1) {
+      return ''
+    }
+    let seconds = this.gpxStore.files
+      .map( (f) => this.displayable.durationAsSeconds(f.startDate, f.endDate))
+      .reduce( (accumulator, v) => accumulator + v )
+    return this.displayable.secondsToDuration(seconds)
+  }
+
+  get headerText(): string {
     if (this.activeTracks < 1) {
       return 'No tracks available'
     } else {
@@ -218,9 +283,9 @@ export default class Info extends Vue {
 
 <style scoped>
 
-.info-content {
-  text-align: left;
-  color: white;
+.info-text-content {
+  padding-top: 0.5em;
+  padding-left: 1em;
 }
 
 .track-container {

@@ -1,14 +1,28 @@
-import { GpxFile } from '@/models/Gpx'
+import { GpxFile, GpxPoint } from '@/models/Gpx'
 import { DateTime } from 'luxon'
 
 export class Displayable {
   public nowWithMsecs(): string {
     return DateTime.local().toFormat('HH:mm:ss.SSS')
+  }
 
+  public durationAsSeconds(start: Date, end: Date): number {
+    return Math.round((end.getTime() - start.getTime()) / 1000)
+  }
+
+  public secondsToDuration(seconds: number): string {
+    let hours = Math.floor(seconds / 3600)
+    let minutes = Math.floor((seconds - (hours * 3600)) / 60)
+    let s = seconds - (hours * 3600) - (minutes * 60)
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   }
 
   public durationGpx(gpx: GpxFile): string {
     return this.duration(gpx.startDate, gpx.endDate)
+  }
+
+  public durationPoints(start: GpxPoint, end: GpxPoint): string {
+    return this.duration(start.timestamp, end.timestamp)
   }
 
   public duration(startDate: Date, endDate: Date): string {
@@ -64,14 +78,12 @@ export class Displayable {
     return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
   }
 
+  public timeWithSeconds(date: string): string {
+    return DateTime.fromISO(new Date(date.toString()).toISOString()).toFormat('HH:mm.ss')
+  }
+
   public shortTime(date: string): string {
-    const ds = this.time(date)
-    const ampm = ds.substr(ds.length - 2)
-    const t = ds.substring(0, 5)
-    if (t.endsWith(':')) {
-      return t.substring(0, 4) + '\xa0' + ampm
-    }
-    return t + '\xa0' + ampm
+    return DateTime.fromISO(new Date(date.toString()).toISOString()).toFormat('HH:mm\xa0a')
   }
 
   public time(date: string): string {
