@@ -26,6 +26,7 @@ export default class MapView extends Vue {
   private defaultInfoText = ''
   private map?: L.Map
   private mapLayersControl: L.Control.Layers | null = null
+  private nameToControlLayer: Map<string, L.Layer> = new Map<string, L.Layer>()
   private visibleTracks:Map<string, L.Layer> = new Map<string, L.FeatureGroup>()
   private displayable = displayable
 
@@ -121,8 +122,8 @@ export default class MapView extends Vue {
 
     removedTracks.forEach( (n) => {
       let oldLayer = this.visibleTracks.get(n)
+      this.remove(n, oldLayer as L.FeatureGroup)
       this.visibleTracks.delete(n)
-      this.remove(oldLayer as L.FeatureGroup)
     })
     addedTracks.forEach( (n) => {
       let fg = this.add(n)
@@ -141,7 +142,10 @@ export default class MapView extends Vue {
     this.setSelectedMessage(this.defaultInfoText)
   }
 
-  private remove(layer: L.FeatureGroup) {
+  private remove(name: string, layer: L.FeatureGroup) {
+    if (this.mapLayersControl && this.nameToControlLayer.has(name)) {
+      this.mapLayersControl.removeLayer(this.nameToControlLayer.get(name)!)
+    }
     layer.removeFrom(this.map!)
   }
 
@@ -265,6 +269,7 @@ export default class MapView extends Vue {
     } else {
       this.mapLayersControl.addOverlay(layer, name)
     }
+    this.nameToControlLayer.set(name, layer)
   }
 
   private initializeMap() {
