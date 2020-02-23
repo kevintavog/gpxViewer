@@ -1,7 +1,11 @@
-import { GpxFile, GpxPoint } from '@/models/Gpx'
-import { DateTime } from 'luxon'
+import { GpxFile, GpxPoint, GpxSegment } from '@/models/Gpx'
+import { DateTime, Duration } from 'luxon'
 
 export class Displayable {
+  static kilometersPerMile = 0.62137
+  static yardsPerMile = 1760
+  static feetPerMile = 5280
+
   public nowWithMsecs(): string {
     return DateTime.local().toFormat('HH:mm:ss.SSS')
   }
@@ -10,11 +14,26 @@ export class Displayable {
     return Math.round((end.getTime() - start.getTime()) / 1000)
   }
 
+  public secondsInSegment(segment: GpxSegment): number {
+    let first = segment.points[0]
+    let last = segment.points.slice(-1)[0]
+    return this.durationAsSeconds(first.timestamp, last.timestamp)
+  }
+
+  public formatDuration(duration: Duration): string {
+    var format = 'h:mm:ss'
+    if (duration.hours == 0) {
+      format = 'm:ss'
+    }
+    return duration.toFormat(format)
+  }
+
   public secondsToDuration(seconds: number): string {
-    let hours = Math.floor(seconds / 3600)
-    let minutes = Math.floor((seconds - (hours * 3600)) / 60)
-    let s = seconds - (hours * 3600) - (minutes * 60)
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+    var format = 'h:mm:ss'
+    if (seconds < (60 * 60)) {
+      format = 'm:ss'
+    }
+    return this.formatDuration(Duration.fromMillis(seconds * 1000))
   }
 
   public durationGpx(gpx: GpxFile): string {
@@ -28,12 +47,15 @@ export class Displayable {
   public duration(startDate: Date, endDate: Date): string {
     const end = DateTime.fromISO(endDate.toISOString())
     const start = DateTime.fromISO(startDate.toISOString())
-    const diff = end.diff(start, ['hours', 'minutes', 'seconds']).toObject()
-    return `${diff.hours}:${this.pad(diff.minutes || 0, 2)}:${this.pad(diff.seconds || 0, 2)}`
+    return this.formatDuration(end.diff(start, ['hours', 'minutes', 'seconds']))
   }
 
   public distance(gpx: GpxFile): string {
-    return this.distanceKilometers(gpx.meters)
+    return this.milesString(gpx.meters * 1000)
+  }
+
+  public yardsString(meters: number): string {
+    return this.milesString(meters / 1000.0)
   }
 
   public distanceMeters(meters: number): string {
@@ -53,18 +75,47 @@ export class Displayable {
       return `${Math.round(100 * km) / 100} km`
   }
 
+  public milesString(km: number): string {
+    let miles = km * Displayable.kilometersPerMile
+    if (miles < 0.00001) {
+      return '-'
+    }
+    if (miles < 0.0017) {
+      return `${Math.round(miles * Displayable.feetPerMile)} feet`
+    }
+    if (miles < 1.0) {
+      if (miles < 0.010) {
+        return `${Math.round(miles * Displayable.yardsPerMile * 10) / 10} yards`
+      }
+      return `${Math.round(miles * Displayable.yardsPerMile)} yards`
+    }
+    return `${Math.round(100 * miles) / 100} miles`
+  }
+
   public pad(num: number, padding: number): string {
     return num.toString().padStart(padding, '0')
   }
 
-  public speed(seconds: number, kilometers: number): string {
-      const kmh = kilometers / (seconds / (60 * 60))
-      return `${Math.round(10 * kmh) / 10} km/h`
+  public speedMs(meters: number, seconds: number): string {
+    if (seconds < 0.1) {
+      return '- m/s'
+    }
+    const ms = meters / seconds
+    return `${Math.round(100 * ms) / 100} m/s`
   }
 
-  public speedKmh(kmh: number): string {
-    return `${Math.round(10 * kmh) / 10} km/h`
+  public speedMph(seconds: number, kilometers: number): string {
+    if (seconds < 0.00001 || kilometers < 0.00001) {
+      return '-'
+    }
+    let miles = kilometers * Displayable.kilometersPerMile
+    const mph = miles / (seconds / (60 * 60))
+    return `${Math.round(10 * mph) / 10} mph`
   }
+
+  // public speedKmh(kmh: number): string {
+  //   return `${Math.round(10 * kmh) / 10} km/h`
+  // }
 
   public dayOfWeek(date: string | Date, zoneName: string): string {
     return this.dateTime(date, zoneName).weekdayLong

@@ -1,6 +1,5 @@
 import { GpxFile, GpxParser } from '@/models/Gpx'
 import { Vue } from 'vue-property-decorator'
-import { displayable } from '@/models/Displayable'
 
 export class GpxStore {
     public files: GpxFile[] = []
@@ -20,7 +19,8 @@ export class GpxStore {
         var reader = new FileReader()
         reader.onloadend = (function (file) {
           return function () {
-            new GpxParser().parse(file.name, reader.result as string)
+            let xmlString = reader.result as string
+            new GpxParser().parse(file.name, xmlString)
               .then((gpxFile: GpxFile) => {
                 Vue.set(storeInstance.files, storeInstance.files.length, gpxFile)
                 resolve(gpxFile)

@@ -3,6 +3,7 @@ import { displayable } from '@/models/Displayable'
 
 export interface GeoNearestPoint {
   point: GpxPoint
+  prevPoint: GpxPoint
   distance: string
   duration: string
 }
@@ -71,7 +72,7 @@ export class Geo {
     let x = Math.cos(lat1Radians) * Math.sin(lat2Radians) -
       Math.sin(lat1Radians) * Math.cos(lat2Radians) * Math.cos(lon2Radians - lont1Radians)
     let bearing = Geo.toDegrees(Math.atan2(y, x))
-    return (bearing + 360) % 360
+    return Math.floor((bearing + 360) % 360)
   }
 
   public static pointAlongBearing(lat: number, lon: number, bearing: number, distanceMeters: number) {
@@ -91,25 +92,29 @@ export class Geo {
 
   public static nearestPoint(points: GpxPoint[], latitude: number, longitude: number): GeoNearestPoint {
     var nearestPoint = points[0]
+    var prevPoint = nearestPoint
     var bestDistance = this.distanceLL(nearestPoint.latitude, nearestPoint.longitude, latitude, longitude)
     var meters = 0
 
-    var desiredPoint: GpxPoint = { latitude: latitude, longitude: longitude, timestamp: new Date() }
+    var desiredPoint: GpxPoint = { latitude: latitude, longitude: longitude, timestamp: new Date(), calculatedMeters: 0 }
 
     points.forEach( (pt, index) => {
+      var prior = pt
       if (index > 0) {
         meters += this.distanceGpx(points[index], pt)
+        prior = points[index - 1]
       }
       var distance = Geo.distanceGpx(pt, desiredPoint)
       if (distance < bestDistance) {
         bestDistance = distance
         nearestPoint = pt
+        prevPoint = prior
       }
     })
 
     let duration = displayable.duration(points[0].timestamp, nearestPoint.timestamp)
     let distance = displayable.distanceMeters(meters)
-    return { point: nearestPoint, distance: distance, duration: duration }
+    return { point: nearestPoint, prevPoint: prevPoint, distance: distance, duration: duration }
   }
 
 }
