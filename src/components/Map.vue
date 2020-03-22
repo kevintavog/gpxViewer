@@ -54,6 +54,8 @@ export default class MapView extends Vue {
   private visibleTracks:Map<string, L.Layer> = new Map<string, L.FeatureGroup>()
   private displayable = displayable
 
+  private locationPopup = L.popup()
+
   private currentTrackIndex: number = -1
   private currentSegmentIndex: number = -1
 
@@ -505,6 +507,15 @@ export default class MapView extends Vue {
     this.nameToControlLayer.set(name, layer)
   }
 
+  private showLocationPopup(latitude: number, longitude: number) {
+    const wikiUrl = `https://en.wikipedia.org/wiki/Special:Nearby#/coord/${latitude},${longitude}`
+    this.locationPopup.
+      setLatLng(L.latLng(latitude, longitude)).
+      setContent(
+        `<a style="color:blue !important; text-decoration:underline; font-size:1.3em;" href="${wikiUrl}" > Nearby on Wikipedia </a>`)
+      .addTo(this.map!)
+  }
+
   private initializeMap() {
     if (this.map) { return }
 
@@ -529,6 +540,11 @@ export default class MapView extends Vue {
       const me = e as any
       if (me.originalEvent && me.originalEvent._gpxHandled) { return }
       this.clearSelection()
+    })
+
+    this.map.on('contextmenu', (e) => {
+      const leafletEvent = e as L.LeafletMouseEvent
+      this.showLocationPopup(leafletEvent.latlng.lat, leafletEvent.latlng.lng)
     })
 
     // Used to scale icons at different zoom levels

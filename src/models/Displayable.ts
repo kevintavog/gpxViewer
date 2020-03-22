@@ -113,9 +113,9 @@ export class Displayable {
     return `${Math.round(10 * mph) / 10} mph`
   }
 
-  // public speedKmh(kmh: number): string {
-  //   return `${Math.round(10 * kmh) / 10} km/h`
-  // }
+  public speedKmh(kmh: number): string {
+    return `${Math.round(10 * kmh) / 10} km/h`
+  }
 
   public dayOfWeek(date: string | Date, zoneName: string): string {
     return this.dateTime(date, zoneName).weekdayLong
