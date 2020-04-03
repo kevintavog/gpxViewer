@@ -508,11 +508,14 @@ export default class MapView extends Vue {
   }
 
   private showLocationPopup(latitude: number, longitude: number) {
-    const wikiUrl = `https://en.wikipedia.org/wiki/Special:Nearby#/coord/${latitude},${longitude}`
+    const wikipediaUrl = `https://en.wikipedia.org/wiki/Special:Nearby#/coord/${latitude},${longitude}`
+    const wikimapiaUrl = `http://wikimapia.org/#lang=en&lat=${latitude}&lon=${longitude}&z=19/`
+
     this.locationPopup.
       setLatLng(L.latLng(latitude, longitude)).
       setContent(
-        `<a style="color:blue !important; text-decoration:underline; font-size:1.3em;" href="${wikiUrl}" > Nearby on Wikipedia </a>`)
+        `<a class="location-popup-link" href="${wikipediaUrl}" target="_blank" > Nearby on Wikipedia </a>`
+        + `<br><a class="location-popup-link" href="${wikimapiaUrl}" target="_blank" > Explore on Wikimapia </a>`)
       .addTo(this.map!)
   }
 
@@ -584,6 +587,10 @@ export default class MapView extends Vue {
   background-color: #BBB !important;
 }
 
+.leaflet-popup-content-wrapper {
+  background: #696969 !important;
+}
+
 .start-stop-icon {
   width: 32px;
   height: 32px;
@@ -596,6 +603,11 @@ export default class MapView extends Vue {
 
 .gpx-viewer-arrow-polyline {
   transform: scale(1.0);
+}
+
+.location-popup-link {
+  text-decoration:underline;
+  font-size:1.3em;
 }
 
 </style>
