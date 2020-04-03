@@ -28,7 +28,7 @@
             <b-icon icon="bars" />
           </button>
           <b-dropdown-item aria-role="list-item" @click="addTrack" >Add a track </b-dropdown-item>
-          <b-dropdown-item aria-role="list-item" @click="isGotoLocationActive=true" >Go to lat/lon </b-dropdown-item>
+          <b-dropdown-item aria-role="list-item" @click="parseLocationFailed = ''; isGotoLocationActive=true" >Go to lat/lon </b-dropdown-item>
           <b-dropdown-item aria-role="list-item" @click="isAddSquareActive=true" >Add a square </b-dropdown-item>
         </b-dropdown>
         <b-button class="is-pulled-right" icon-left="route" type="is-success" @click="addTrack">Add a track</b-button>
@@ -175,6 +175,9 @@
           <b-field label="Location" message="lat,lon or Geohash" >
             <b-input v-model="gotoLocationField" />
           </b-field>
+          <span v-if="parseLocationFailed.length > 0" class="has-text-danger" >
+            {{parseLocationFailed}}
+          </span>
 
           <div >
             <b-button type="is-success" @click="gotoLocation" :disabled="gotoLocationField.length < 1" > Go </b-button>
@@ -225,6 +228,7 @@ export default class Info extends Vue {
   private isLoading = false
   private isAddFileActive = false
   private isGotoLocationActive = false
+  private parseLocationFailed = ''
   private isAddSquareActive = false
   private gotoLocationField = ''
   private addSquareWidthField = ''
@@ -467,10 +471,13 @@ export default class Info extends Vue {
 
   private gotoLocation(e: Event) {
     // Validate gotoLocationField; if invalid, don't cancel dialog
-    let pair = this.gotoLocationField.split(',').filter( x => x.trim().length).map(Number)
-    if (pair.length == 2) {
+    let ll = Geo.parseLatLon(this.gotoLocationField)
+    if (ll) {
+      this.parseLocationFailed = ''
       this.isGotoLocationActive = false
-      this.$emit('goto-location', pair)
+      this.$emit('goto-location', ll)
+    } else {
+      this.parseLocationFailed = `Unable to parse '${this.gotoLocationField}'`
     }
   }
 

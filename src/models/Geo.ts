@@ -1,3 +1,4 @@
+import LatLonSpherical from 'geodesy/latlon-spherical'
 import { GpxPoint, GpxSegment } from '@/models/Gpx'
 import { displayable } from '@/models/Displayable'
 
@@ -11,6 +12,23 @@ export interface GeoNearestPoint {
 export class Geo {
   static get earthRadiusMeters() {
     return 6372.8 * 1000
+  }
+
+  public static parseLatLon(latlon: string): undefined | number[] {
+    let data = latlon
+    if (!latlon.includes(',')) {
+      const tokens = latlon.split(' ')
+      if (tokens.length == 2) {
+        data = `${tokens[0]}, ${tokens[1]}`
+      }
+    }
+
+    try {
+      const pt = LatLonSpherical.parse(data)
+      return [pt.lat,pt.lon]
+    } catch {
+      return undefined
+    }
   }
 
   public static normalizeDegrees(degrees: number): number {
