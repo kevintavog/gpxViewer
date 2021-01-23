@@ -11,6 +11,9 @@ export class Displayable {
   }
 
   public durationAsSeconds(start: Date, end: Date): number {
+    if (end.getTime() < start.getTime()) {
+      return Math.round((start.getTime() - end.getTime()) / 1000)
+    }
     return Math.round((end.getTime() - start.getTime()) / 1000)
   }
 
@@ -45,8 +48,13 @@ export class Displayable {
   }
 
   public duration(startDate: Date, endDate: Date): string {
-    const end = DateTime.fromISO(endDate.toISOString())
-    const start = DateTime.fromISO(startDate.toISOString())
+    let end = DateTime.fromISO(endDate.toISOString())
+    let start = DateTime.fromISO(startDate.toISOString())
+    if (end < start) {
+      const temp = start
+      start = end
+      end = temp
+    }
     return this.formatDuration(end.diff(start, ['hours', 'minutes', 'seconds']))
   }
 

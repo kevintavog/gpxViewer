@@ -434,8 +434,8 @@ export default class MapView extends Vue {
       c.addTo(rawPointsLayer)
       c.on('click', (e) => {
         let prevPoint = segment.points[Math.max(index - 1, 0)]
+        this.selectPoint(e, pt, c, rawPointsOptions)
         this.showPointInfo(segment, segmentMessage, pt, prevPoint)
-        this.selectPoint(e, pt, c, options)
       })
     })
 
