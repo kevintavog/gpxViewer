@@ -220,8 +220,10 @@ export default class MapView extends Vue {
       padding: L.point(100, 100)
     }
     if (GpxParser.isSegment(object)) {
-      let pt = object.points[Math.ceil(object.points.length / 2)]
-      this.map!.panInside(L.latLng(pt.latitude, pt.longitude), padOptions)
+      if (object.points.length > 1) {
+        let pt = object.points[Math.ceil(object.points.length / 2)]
+        this.map!.panInside(L.latLng(pt.latitude, pt.longitude), padOptions)
+      }
     } else if (GpxParser.isWaypoint(object)) {
       this.map!.panInside(L.latLng(object.latitude, object.longitude), padOptions)
     }
@@ -492,9 +494,11 @@ export default class MapView extends Vue {
     const secondsFromPrev = displayable.durationAsSeconds(prevPt.timestamp, pt.timestamp)
     const metersFromPrev = pt.calculatedMeters
     const distanceString = displayable.yardsString(metersFromPrev)
-    const speedFromPrev = displayable.speedMph(secondsFromPrev, metersFromPrev / 1000)
+    // const speedFromPrev = displayable.speedMph(secondsFromPrev, metersFromPrev / 1000)
+    const speedFromPrev = displayable.speedMsToMph(pt.speed)
     const time = displayable.timeWithSeconds(pt.timestamp, segment.timezoneName)
-    this.setSelectedMessage(`${segmentMessage}; [ ${time}, ${speedFromPrev} (${distanceString}) ]`)
+    const course = pt.course
+    this.setSelectedMessage(`${segmentMessage}; [ ${time}, ${speedFromPrev} (${distanceString}), ${course}° ]`)
   }
 
   private addToMapLayersControl(layer: L.FeatureGroup, name: string) {

@@ -114,7 +114,7 @@ export class Geo {
     var bestDistance = this.distanceLL(nearestPoint.latitude, nearestPoint.longitude, latitude, longitude)
     var meters = 0
 
-    var desiredPoint: GpxPoint = { latitude: latitude, longitude: longitude, timestamp: new Date(), calculatedMeters: 0 }
+    var desiredPoint: GpxPoint = { latitude: latitude, longitude: longitude, timestamp: new Date(), calculatedMeters: 0 , elevation: 0, speed: 0, course: 0 }
 
     points.forEach( (pt, index) => {
       var prior = pt

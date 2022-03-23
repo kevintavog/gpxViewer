@@ -112,6 +112,11 @@ export class Displayable {
     return `${Math.round(100 * ms) / 100} m/s`
   }
 
+  public speedMsToMph(mps: number): string {
+    let mph = 2.2369363 * mps
+    return `${Math.round(mph)/ 10} mph`
+  }
+
   public speedMph(seconds: number, kilometers: number): string {
     if (seconds < 0.00001 || kilometers < 0.00001) {
       return '-'

@@ -73,6 +73,9 @@ export interface GpxSegment {
 export interface GpxPoint {
     latitude: number
     longitude: number
+    elevation: number
+    speed: number
+    course: number
     timestamp: Date
     calculatedMeters: number
 }
@@ -220,6 +223,9 @@ export class GpxParser {
                 const gpxPt = {
                     latitude: trkpt.$.lat,
                     longitude: trkpt.$.lon,
+                    elevation: trkpt.ele,
+                    speed: trkpt.speed,
+                    course: trkpt.course,
                     timestamp: new Date(trkpt.time),
                     calculatedMeters: 0,
                 } as GpxPoint
@@ -236,18 +242,18 @@ export class GpxParser {
                 }
                 if (prevPt) {
                     const secondsDiff = (gpxPt.timestamp.getTime() - prevPt.timestamp.getTime()) / 1000
-                    if (secondsDiff > 30) {
-                        if (pointList.length > 1) {
-                            let timezoneName = Timezone.fromGpx(pointList[0])
-                            segments.push({ points: pointList, meters: meters, timezoneName, bearing: -1, visible: true })
-                            meters = 0.0
-                        }
-                        pointList = []
-                    } else {
+                    // if (secondsDiff > 30) {
+                    //     if (pointList.length > 1) {
+                    //         let timezoneName = Timezone.fromGpx(pointList[0])
+                    //         segments.push({ points: pointList, meters: meters, timezoneName, bearing: -1, visible: true })
+                    //         meters = 0.0
+                    //     }
+                    //     pointList = []
+                    // } else {
                         let distancePrevPt = Geo.distanceGpx(prevPt, gpxPt)
                         gpxPt.calculatedMeters = distancePrevPt
                         meters += distancePrevPt
-                    }
+                    // }
                 }
 
                 pointList.push(gpxPt)
@@ -279,6 +285,9 @@ export class GpxParser {
         return {
             latitude: trkpt.$.lat,
             longitude: trkpt.$.lon,
+            elevation: trkpt.ele,
+            speed: trkpt.speed,
+            course: trkpt.course,
             timestamp: new Date(trkpt.time),
             calculatedMeters: 0
         } as GpxPoint
