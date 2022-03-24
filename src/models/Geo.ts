@@ -1,6 +1,7 @@
 import LatLonSpherical from 'geodesy/latlon-spherical'
 import { GpxPoint, GpxSegment } from '@/models/Gpx'
 import { displayable } from '@/models/Displayable'
+import { DateTime } from 'luxon'
 
 export interface GeoNearestPoint {
   point: GpxPoint
@@ -114,7 +115,17 @@ export class Geo {
     var bestDistance = this.distanceLL(nearestPoint.latitude, nearestPoint.longitude, latitude, longitude)
     var meters = 0
 
-    var desiredPoint: GpxPoint = { latitude: latitude, longitude: longitude, timestamp: new Date(), calculatedMeters: 0 , elevation: 0, speed: 0, course: 0 }
+    var desiredPoint: GpxPoint = { 
+      latitude: latitude,
+      longitude: longitude,
+      timestamp: DateTime.now(),
+      calculatedMeters: 0,
+      elevation: 0,
+      speed: 0,
+      course: 0,
+      calculatedCourse: 0,
+      calculatedKmh: 0
+    }
 
     points.forEach( (pt, index) => {
       var prior = pt

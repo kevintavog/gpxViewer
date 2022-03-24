@@ -1,4 +1,4 @@
-import { GpxFile, GpxPoint, GpxSegment } from '@/models/Gpx'
+import { Gpx, GpxPoint, GpxSegment } from '@/models/Gpx'
 import { DateTime, Duration } from 'luxon'
 
 export class Displayable {
@@ -10,11 +10,8 @@ export class Displayable {
     return DateTime.local().toFormat('HH:mm:ss.SSS')
   }
 
-  public durationAsSeconds(start: Date, end: Date): number {
-    if (end.getTime() < start.getTime()) {
-      return Math.round((start.getTime() - end.getTime()) / 1000)
-    }
-    return Math.round((end.getTime() - start.getTime()) / 1000)
+  public durationAsSeconds(start: DateTime, end: DateTime): number {
+    return Math.abs(start.diff(end).valueOf() / 1000)
   }
 
   public secondsInSegment(segment: GpxSegment): number {
@@ -39,7 +36,7 @@ export class Displayable {
     return this.formatDuration(Duration.fromMillis(seconds * 1000))
   }
 
-  public durationGpx(gpx: GpxFile): string {
+  public durationGpx(gpx: Gpx): string {
     return this.duration(gpx.startDate, gpx.endDate)
   }
 
@@ -47,19 +44,17 @@ export class Displayable {
     return this.duration(start.timestamp, end.timestamp)
   }
 
-  public duration(startDate: Date, endDate: Date): string {
-    let end = DateTime.fromISO(endDate.toISOString())
-    let start = DateTime.fromISO(startDate.toISOString())
-    if (end < start) {
-      const temp = start
-      start = end
-      end = temp
+  public duration(startDate: DateTime, endDate: DateTime): string {
+    if (endDate < startDate) {
+      const temp = startDate
+      startDate = endDate
+      endDate = temp
     }
-    return this.formatDuration(end.diff(start, ['hours', 'minutes', 'seconds']))
+    return this.formatDuration(endDate.diff(startDate, ['hours', 'minutes', 'seconds']))
   }
 
-  public distance(gpx: GpxFile): string {
-    return this.milesString(gpx.meters * 1000)
+  public distance(gpx: Gpx): string {
+    return this.milesString(gpx.kilometers)
   }
 
   public yardsString(meters: number): string {
@@ -130,19 +125,19 @@ export class Displayable {
     return `${Math.round(10 * kmh) / 10} km/h`
   }
 
-  public dayOfWeek(date: string | Date, zoneName: string): string {
+  public dayOfWeek(date: string | DateTime, zoneName: string): string {
     return this.dateTime(date, zoneName).weekdayLong
   }
 
-  public date(date: string | Date, zoneName: string): string {
-    return this.dateTime(date, zoneName).toLocaleString({ locale: 'en-US' })
+  public date(date: string | DateTime, zoneName: string): string {
+    return this.dateTime(date, zoneName).setLocale('en-US').toLocaleString()
   }
 
-  public timeWithSeconds(date: string | Date, zoneName: string): string {
+  public timeWithSeconds(date: string | DateTime, zoneName: string): string {
     return this.dateTime(date, zoneName).toFormat('HH:mm.ss')
   }
 
-  public shortTime(date: string | Date, zoneName: string): string {
+  public shortTime(date: string | DateTime, zoneName: string): string {
     return this.dateTime(date, zoneName).toFormat('HH:mm\xa0a')
   }
 
@@ -150,14 +145,15 @@ export class Displayable {
     return DateTime.utc().setZone(zoneName).offsetNameShort
   }
 
-  public dateTime(date: string | Date, zoneName: string): DateTime {
+  public dateTime(date: string | DateTime, zoneName: string): DateTime {
     var iso: string
-    if (date instanceof Date) {
-      iso = (date as Date).toISOString()
+    if (date instanceof DateTime) {
+      iso = (date as DateTime).toISO()
     } else {
       iso = date.toString()
     }
-    return DateTime.fromISO(iso, { zone: zoneName })
+    const zone = zoneName === '' ? 'UTC' : zoneName
+    return DateTime.fromISO(iso, { zone })
   }
 
   public join(list: string[]): string {

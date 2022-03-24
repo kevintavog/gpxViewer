@@ -65,7 +65,7 @@
                   {{ props.row.name }}
                 </b-table-column>
                 <b-table-column field="distance" label="Distance" centered>
-                  {{ displayable.yardsString(props.row.meters) }}
+                  {{ displayable.yardsString(props.row.kilometers * 1000) }}
                 </b-table-column>
                 <b-table-column field="date" label="Date" centered>
                   {{ displayable.dayOfWeek(props.row.startDate, props.row.timezoneName) }},
@@ -211,9 +211,10 @@
 <script lang="ts">
 import { Component, Inject, Prop, Vue, Watch } from 'vue-property-decorator'
 import { Geo } from '@/models/Geo'
-import { GpxFile, GpxParser, GpxSegment, GpxTrackBounds, GpxWaypoint } from '@/models/Gpx'
+import { Gpx, GpxParser, GpxSegment, GpxBounds, GpxTrack, GpxWaypoint } from '@/models/Gpx'
 import { GpxStore } from '@/models/GpxStore'
 import { displayable } from '@/models/Displayable'
+import { DateTime } from 'luxon'
 
 @Component
 export default class Info extends Vue {
@@ -275,7 +276,7 @@ export default class Info extends Vue {
 
   private getDistance(o: GpxSegment | GpxWaypoint): number {
     if (GpxParser.isSegment(o)) {
-      return o.meters
+      return o.kilometers * 1000
     }
     if (GpxParser.isWaypoint(o)) {
       if (o.rangic) {
@@ -288,7 +289,9 @@ export default class Info extends Vue {
 
   private getBearing(o: GpxSegment | GpxWaypoint): number {
     if (GpxParser.isSegment(o)) {
-      return o.bearing
+      if (o.rangic) {
+        return o.rangic.course
+      }
     }
     if (GpxParser.isWaypoint(o)) {
       return 0
@@ -296,17 +299,17 @@ export default class Info extends Vue {
     return 0
   }
 
-  private getStartTime(o: GpxSegment | GpxWaypoint): Date {
+  private getStartTime(o: GpxSegment | GpxWaypoint): DateTime {
     if (GpxParser.isSegment(o)) {
       return o.points[0].timestamp
     }
     if (GpxParser.isWaypoint(o)) {
       return o.timestamp
     }
-    return new Date()
+    return DateTime.now()
   }
 
-  private getEndTime(o: GpxSegment | GpxWaypoint): Date {
+  private getEndTime(o: GpxSegment | GpxWaypoint): DateTime {
     if (GpxParser.isSegment(o)) {
       return o.points.slice(-1)[0].timestamp
     }
@@ -316,7 +319,7 @@ export default class Info extends Vue {
       }
       return o.timestamp
     }
-    return new Date()
+    return DateTime.now()
   }
 
   private getExtraInfo(o: GpxSegment | GpxWaypoint): string {
@@ -341,7 +344,7 @@ export default class Info extends Vue {
 
   @Watch('selectedTrack')
   private onSelectedTrackChanged(to: any, from: any) {
-    const file = this.selectedTrack as GpxFile
+    const file = this.selectedTrack as Gpx
     let index = 0
     for (const f of this.gpxStore.files) {
       if (f.startDate == file.startDate) { break }
@@ -353,13 +356,10 @@ export default class Info extends Vue {
 
   @Watch('selectedObject')
   private onSelectedObjectChanged(to: any, from: any) {
-    var timestamp: Date = new Date()
     if (GpxParser.isSegment(this.selectedObject)) {
-      timestamp = this.selectedObject.points[0].timestamp
-      this.$emit('select-segment-time', timestamp.toString())
+      this.$emit('select-segment-time', this.selectedObject.points[0].timestamp.toString())
     } else if (GpxParser.isWaypoint(this.selectedObject)) {
-      timestamp = this.selectedObject.timestamp
-      this.$emit('select-waypoint-time', timestamp.toString())
+      this.$emit('select-waypoint-time', this.selectedObject.timestamp.toString())
     }
   }
 
@@ -371,16 +371,16 @@ export default class Info extends Vue {
     }
 
     var newObjects: (GpxSegment | GpxWaypoint)[] = []
-    this.gpxStore!.files[this.currentTrackIndex].tracks.forEach( t => {
+    this.gpxStore!.files[this.currentTrackIndex].tracks.forEach( (t: GpxTrack) => {
       t.segments.forEach( s => {
         newObjects.push(s)
       })
     })
-    this.gpxStore!.files[this.currentTrackIndex].waypoints.forEach( w => {
+    this.gpxStore!.files[this.currentTrackIndex].waypoints.forEach( (w: GpxWaypoint) => {
       newObjects.push(w)
     })
     this.currentObjects = newObjects.sort( (o1, o2) => {
-      return this.getStartTime(o1).getTime() - this.getStartTime(o2).getTime()
+      return this.getStartTime(o1).valueOf() - this.getStartTime(o2).valueOf()
     })
     this.currentObjects = newObjects
   }
@@ -420,8 +420,8 @@ export default class Info extends Vue {
     let earliestDayOfWeek = this.displayable.dayOfWeek(earliest, earliestTimezoneName)
     let latestDate = this.displayable.date(latest, latestTimezoneName)
     let latestDayOfWeek = this.displayable.dayOfWeek(latest, latestTimezoneName)
-    let earliestTime = this.displayable.shortTime(earliest.toISOString(), earliestTimezoneName)
-    let latestTime = this.displayable.shortTime(latest.toISOString(), latestTimezoneName)
+    let earliestTime = this.displayable.shortTime(earliest.toISO(), earliestTimezoneName)
+    let latestTime = this.displayable.shortTime(latest.toISO(), latestTimezoneName)
     if (earliestDate === latestDate) {
       return `${earliestDayOfWeek}, ${earliestDate} ${earliestTime} - ${latestTime}`
     }
@@ -432,8 +432,8 @@ export default class Info extends Vue {
     if (this.activeTracks < 1) {
       return ''
     }
-    let distance = this.gpxStore.files.map( (f) => f.meters).reduce( (accumulator, v) => accumulator + v )
-    return this.displayable.milesString(distance / 1000)
+    let kilometers = this.gpxStore.files.map( (f) => f.kilometers).reduce( (accumulator, v) => accumulator + v )
+    return this.displayable.milesString(kilometers)
   }
 
   get infoDuration(): string {
@@ -489,16 +489,20 @@ export default class Info extends Vue {
     }
   }
 
-  private removeTrack(file: GpxFile) {
+  private removeTrack(file: Gpx) {
     this.gpxStore.remove(file)
   }
 
-  private sizeToBounds(item: GpxFile | GpxSegment | GpxWaypoint) {
-    var bounds: GpxTrackBounds = { minLat: 0, minLon: 0, maxLat: 0, maxLon: 0 }
-    if (GpxParser.isFile(item)) {
+  private sizeToBounds(item: Gpx | GpxSegment | GpxWaypoint) {
+    var bounds: GpxBounds = { minLat: 0, minLon: 0, maxLat: 0, maxLon: 0 }
+    if (GpxParser.isGpx(item)) {
       bounds = item.bounds
     } else if (GpxParser.isSegment(item)) {
-      bounds = GpxParser.segmentBounds(item)
+      if (item.rangic) {
+        bounds = item.rangic.bounds
+      } else {
+        bounds = this.segmentBounds(item)
+      }
     } else if (GpxParser.isWaypoint(item)) {
       bounds.minLat = item.latitude
       bounds.minLon = item.longitude
@@ -509,9 +513,28 @@ export default class Info extends Vue {
     this.$emit('size-to-bounds', bounds)
   }
 
+  private segmentBounds(segment: GpxSegment): GpxBounds {
+      var lowLat = segment.points[0].latitude
+      var lowLon = segment.points[0].longitude
+      var highLat = lowLat
+      var highLon = lowLon
+      for (const pt of segment.points) {
+          lowLat = Math.min(lowLat, pt.latitude)
+          lowLon = Math.min(lowLon, pt.longitude)
+          highLat = Math.max(highLat, pt.latitude)
+          highLon = Math.max(highLon, pt.longitude)
+      }  
+      return { 
+          minLat: lowLat,
+          minLon: lowLon,
+          maxLat: highLat,
+          maxLon: highLon
+      } as GpxBounds
+  }
+
   private toggleVisibility(item: GpxSegment | GpxWaypoint) {
     item.visible = !item.visible
-    var timestamp: Date
+    var timestamp: DateTime
     if (GpxParser.isSegment(item)) {
       timestamp = item.points[0].timestamp
     } else {

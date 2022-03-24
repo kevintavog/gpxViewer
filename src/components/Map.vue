@@ -19,7 +19,7 @@
 <script lang="ts">
 import { Component, Inject, Vue, Watch } from 'vue-property-decorator'
 import L from 'leaflet'
-import { GpxFile, GpxPoint, GpxSegment, GpxTrack, GpxWaypoint, GpxTrackBounds, GpxParser } from '@/models/Gpx'
+import { Gpx, GpxPoint, GpxSegment, GpxTrack, GpxWaypoint, GpxBounds, GpxParser } from '@/models/Gpx'
 import { Geo } from '@/models/Geo'
 import { GpxStore } from '@/models/GpxStore'
 import { PolylineArrows } from '@/models/PolylineArrows'
@@ -92,7 +92,7 @@ export default class MapView extends Vue {
     this.onTracksChanged()
   }
 
-  get activeTracks(): GpxFile[] {
+  get activeTracks(): Gpx[] {
     return this.gpxStore.files
   }
 
@@ -230,7 +230,7 @@ export default class MapView extends Vue {
   }
 
   private sizeToBounds(e: Event) {
-    let bounds = (e as unknown) as GpxTrackBounds
+    let bounds = (e as unknown) as GpxBounds
     this.map!.fitBounds(L.latLngBounds([bounds.minLat, bounds.minLon], [bounds.maxLat, bounds.maxLon]))
   }
 
@@ -319,7 +319,7 @@ export default class MapView extends Vue {
       let track = this.activeTracks.slice(-1)[0]
       this.defaultInfoText = `${displayable.dayOfWeek(track.startDate, track.timezoneName)}, `
         + `${displayable.date(track.startDate, track.timezoneName)}; `
-        + `${displayable.milesString(track.meters / 1000)}, `
+        + `${displayable.milesString(track.kilometers)}, `
         + `${displayable.durationGpx(track)}`
       if (this.currentTrackIndex < 0 || this.currentTrackIndex >= this.activeTracks.length) {
         this.currentTrackIndex = this.activeTracks.length - 1
@@ -344,7 +344,7 @@ export default class MapView extends Vue {
     }
   }
 
-  private add(gpx: GpxFile): L.FeatureGroup {
+  private add(gpx: Gpx): L.FeatureGroup {
     let featureGroup = new L.FeatureGroup()
     gpx.waypoints.forEach( (w, index) => {
       this.addWaypoint(featureGroup, gpx, w, index)
@@ -364,7 +364,7 @@ export default class MapView extends Vue {
     return featureGroup
   }
 
-  private addWaypoint(fg: L.FeatureGroup, gpx: GpxFile, waypoint: GpxWaypoint, wayPointIndex: number) {
+  private addWaypoint(fg: L.FeatureGroup, gpx: Gpx, waypoint: GpxWaypoint, wayPointIndex: number) {
     let options = this.defaultWaypointOptions
     if (waypoint.rangic) {
       if (waypoint.rangic.stopType == "noMovement") {
@@ -384,7 +384,7 @@ export default class MapView extends Vue {
     this.timeToWaypoint.set(waypoint.timestamp.toString(), { waypoint, circle: pt, options: options })
   }
 
-  private addTrack(fg: L.FeatureGroup, gpx: GpxFile, track: GpxTrack, trackIndex: number) {
+  private addTrack(fg: L.FeatureGroup, gpx: Gpx, track: GpxTrack, trackIndex: number) {
     track.segments.forEach( (s, segmentIndex) => {
       this.addSegment(fg, gpx, trackIndex, segmentIndex, s, this.lineOptions[this.nextLineOption])
       ++this.nextLineOption
@@ -394,7 +394,7 @@ export default class MapView extends Vue {
     })
   }
 
-  private addSegment(fg: L.FeatureGroup, gpx: GpxFile, trackIndex: number, segmentIndex: number, 
+  private addSegment(fg: L.FeatureGroup, gpx: Gpx, trackIndex: number, segmentIndex: number, 
     segment: GpxSegment, lineOptions: L.PolylineOptions) {
     // Using icons - they're too bright and aren't anchored properly (dynamically)
     // Consider using a DivIcon, as it'll scale better AND could (maybe?) transform the center
@@ -480,11 +480,11 @@ export default class MapView extends Vue {
   private getSegmentMessage(segment: GpxSegment): string {
     const firstPoint = segment.points[0]
     const lastPoint = segment.points.slice(-1)[0]
-    const speed = displayable.speedMph(displayable.secondsInSegment(segment), segment.meters / 1000)
+    const speed = displayable.speedMph(displayable.secondsInSegment(segment), segment.kilometers)
     return `segment; ` +
       `${displayable.timeWithSeconds(firstPoint.timestamp, segment.timezoneName)} - ` +
       `${displayable.timeWithSeconds(lastPoint.timestamp, segment.timezoneName)}; ` +
-      `${displayable.milesString(segment.meters / 1000)}, ` +
+      `${displayable.milesString(segment.kilometers)}, ` +
       `${speed}, ` +
       `${displayable.durationPoints(firstPoint, lastPoint)}`
 
@@ -495,9 +495,9 @@ export default class MapView extends Vue {
     const metersFromPrev = pt.calculatedMeters
     const distanceString = displayable.yardsString(metersFromPrev)
     // const speedFromPrev = displayable.speedMph(secondsFromPrev, metersFromPrev / 1000)
-    const speedFromPrev = displayable.speedMsToMph(pt.speed)
+    const speedFromPrev = displayable.speedMsToMph(metersFromPrev / secondsFromPrev)
     const time = displayable.timeWithSeconds(pt.timestamp, segment.timezoneName)
-    const course = pt.course
+    const course = pt.calculatedCourse
     this.setSelectedMessage(`${segmentMessage}; [ ${time}, ${speedFromPrev} (${distanceString}), ${course}° ]`)
   }
 

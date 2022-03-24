@@ -9,21 +9,20 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^5.12.0",
-    "@types/geodesy": "^2.2.2",
-    "@types/leaflet": "^1.5.7",
-    "@types/luxon": "^1.21.0",
+    "@types/geodesy": "^2.2.3",
+    "@types/leaflet": "^1.7.7",
+    "@types/luxon": "^2.0.8",
     "@types/tz-lookup": "^6.1.0",
-    "@types/xml2js": "^0.4.5",
     "buefy": "^0.8.9",
     "core-js": "^3.4.4",
-    "geodesy": "^2.2.1",
-    "leaflet": "^1.6.0",
+    "geodesy": "^2.3.0",
+    "leaflet": "^1.7.1",
     "luxon": "^1.21.3",
+    "txml": "^5.1.1",
     "tz-lookup": "^6.1.25",
     "vue": "^2.6.10",
     "vue-class-component": "^7.0.2",
-    "vue-property-decorator": "^8.3.0",
-    "xml2js": "^0.4.23"
+    "vue-property-decorator": "^8.3.0"
   },
   "devDependencies": {
     "@vue/cli-plugin-babel": "^4.1.0",
